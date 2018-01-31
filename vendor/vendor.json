@@ -9,6 +9,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "MFkrEy77SoBbEtLd3Ros+NZO35w=",
+			"path": "github.com/heroku/x/hmetrics",
+			"revision": "705849e307dd75c91728463dea5bfd08ef493e64",
+			"revisionTime": "2017-10-04T17:02:40Z"
+		},
+		{
 			"checksumSHA1": "GOeW0t8PSBNHFTUHmdSgPv2kl/0=",
 			"path": "github.com/heroku/x/hmetrics/onload",
 			"revision": "705849e307dd75c91728463dea5bfd08ef493e64",
