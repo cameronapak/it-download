@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 )
@@ -16,7 +17,7 @@ func init() {
 
 func main() {
 	server := http.Server{
-		Addr: ":" + "8081",
+		Addr: ":" + os.Getenv("PORT"),
 	}
 
 	http.HandleFunc("/", Index)
