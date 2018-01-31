@@ -4,10 +4,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"os"
 
 	_ "github.com/heroku/x/hmetrics/onload"
-	"github.com/jessebarton/image-get/install"
 )
 
 var tpl *template.Template
@@ -18,11 +16,12 @@ func init() {
 
 func main() {
 	server := http.Server{
-		Addr: ":" + os.Getenv("PORT"),
+		Addr: ":" + "8081",
 	}
 
 	http.HandleFunc("/", Index)
-	http.HandleFunc("/image", Image)
+	http.HandleFunc("/images", Images)
+	http.HandleFunc("/individual", Individual)
 
 	server.ListenAndServe()
 }
@@ -32,10 +31,13 @@ func Index(w http.ResponseWriter, req *http.Request) {
 	HandleError(w, err)
 }
 
-func Image(w http.ResponseWriter, req *http.Request) {
-	v := req.FormValue("i")
-	install.Install(v)
-	err := tpl.ExecuteTemplate(w, "index.tmpl.html", nil)
+func Images(w http.ResponseWriter, req *http.Request) {
+	err := tpl.ExecuteTemplate(w, "images.tmpl.html", nil)
+	HandleError(w, err)
+}
+
+func Individual(w http.ResponseWriter, req *http.Request) {
+	err := tpl.ExecuteTemplate(w, "individual.tmpl.html", nil)
 	HandleError(w, err)
 }
 
