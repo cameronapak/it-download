@@ -1,1 +1,1 @@
-web: get
+web: image-get
