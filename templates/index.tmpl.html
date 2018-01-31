@@ -1,0 +1,32 @@
+{{template "header.tmpl.html"}}
+
+<body>
+    <div>
+        <div>
+            <div class="jumbotron">
+                <h1 class="display-3">Welcome!</h1>
+                <p class="lead">All Documentation for configuring computers can be found at this link
+                    <a class="link" href="">Configuration Documentation</a>
+                </p>
+                <hr class="my-4">
+                <p>Select the Image that you would like to download for the machine that you are configuring. </p>
+                <p class="lead">
+                    <form method="POST" action="/image">
+                        <div class="form-group">
+                            <select name="i" class="btn btn-light btn-lg" class="form-control">
+                                <option>Lighting</option>
+                                <option>Checkin</option>
+                                <option>Protools</option>
+                                <option>Propresenter</option>
+                                <option>Smaart</option>
+                                <option>Usermac</option>
+                            </select>
+                            <input type="submit" value="image" class="btn btn-dark btn-lg">
+                        </div>
+                    </form>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {{template "footer.tmpl.html"}}
