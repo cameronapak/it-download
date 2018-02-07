@@ -1,9 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"html/template"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/heroku/x/hmetrics/onload"
@@ -11,38 +17,38 @@ import (
 
 var tpl *template.Template
 
-// var g Get
+var g Get
 
 // g is the struct that stores the json from Images.json - this file is located in dropbox where you can update
 // the contents of to download different files.
-// type Get struct {
-// 	Images struct {
-// 		Lighting struct {
-// 			Name []string `json:"Name"`
-// 			URL  []string `json:"URL"`
-// 		} `json:"Lighting"`
-// 		Propresenter struct {
-// 			Name []string `json:"Name"`
-// 			URL  []string `json:"URL"`
-// 		} `json:"Propresenter"`
-// 		Protools struct {
-// 			Name []string `json:"Name"`
-// 			URL  []string `json:"URL"`
-// 		} `json:"Protools"`
-// 		Usermac struct {
-// 			Name []string `json:"Name"`
-// 			URL  []string `json:"URL"`
-// 		} `json:"Usermac"`
-// 		Checkin struct {
-// 			Name []string `json:"Name"`
-// 			URL  []string `json:"URL"`
-// 		} `json:"Checkin"`
-// 		Smaart struct {
-// 			Name []string `json:"Name"`
-// 			URL  []string `json:"URL"`
-// 		} `json:"Smaart"`
-// 	} `json:"Images"`
-// }
+type Get struct {
+	Images struct {
+		Lighting struct {
+			Name []string `json:"Name"`
+			URL  []string `json:"URL"`
+		} `json:"Lighting"`
+		Propresenter struct {
+			Name []string `json:"Name"`
+			URL  []string `json:"URL"`
+		} `json:"Propresenter"`
+		Protools struct {
+			Name []string `json:"Name"`
+			URL  []string `json:"URL"`
+		} `json:"Protools"`
+		Usermac struct {
+			Name []string `json:"Name"`
+			URL  []string `json:"URL"`
+		} `json:"Usermac"`
+		Checkin struct {
+			Name []string `json:"Name"`
+			URL  []string `json:"URL"`
+		} `json:"Checkin"`
+		Smaart struct {
+			Name []string `json:"Name"`
+			URL  []string `json:"URL"`
+		} `json:"Smaart"`
+	} `json:"Images"`
+}
 
 func init() {
 	tpl = template.Must(template.ParseGlob("templates/*"))
@@ -57,12 +63,19 @@ func HandleError(w http.ResponseWriter, err error) {
 
 func main() {
 	server := http.Server{
-		Addr:        ":" + "8080",
+		Addr:        ":" + os.Getenv("PORT"),
 		IdleTimeout: time.Hour,
 	}
 
 	http.HandleFunc("/", Index)
-	// http.HandleFunc("/image.json", DownloadFile)
+	// JsonImages()
+	// downloadScript(g.Images.Lighting.Name, g.Images.Lighting.URL)
+	// downloadScript(g.Images.Checkin.Name, g.Images.Checkin.URL)
+	// downloadScript(g.Images.Protools.Name, g.Images.Protools.URL)
+	// downloadScript(g.Images.Propresenter.Name, g.Images.Propresenter.URL)
+	// downloadScript(g.Images.Usermac.Name, g.Images.Usermac.URL)
+	// downloadScript(g.Images.Smaart.Name, g.Images.Smaart.URL)
+	http.HandleFunc("/download", HandleClient)
 
 	server.ListenAndServe()
 }
@@ -72,210 +85,226 @@ func Index(w http.ResponseWriter, req *http.Request) {
 	HandleError(w, err)
 }
 
-// func DownloadFile(w http.ResponseWriter, r *http.Request) {
-// 	url := "https://www.dropbox.com/s/bngfnoxe5kwv8lc/images.json?dl=1"
+func HandleClient(w http.ResponseWriter, req *http.Request) {
+	//First of check if Get is set in the URL
+	Filename := req.URL.Query().Get("file")
+	if Filename == "" {
+		//Get not set, send a 400 bad request
+		http.Error(w, "GET: 'file' not specified in url.", 400)
+		return
+	}
+	fmt.Println("Client requests: " + Filename)
 
-// 	timeout := time.Duration(5) * time.Second
-// 	transport := &http.Transport{
-// 		ResponseHeaderTimeout: timeout,
-// 		Dial: func(network, addr string) (net.Conn, error) {
-// 			return net.DialTimeout(network, addr, timeout)
-// 		},
-// 		DisableKeepAlives: true,
-// 	}
-// 	client := &http.Client{
-// 		Transport: transport,
-// 	}
-// 	resp, err := client.Get(url)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	defer resp.Body.Close()
+	//Check if file exists and open
+	Openfile, err := os.Open(Filename)
+	defer Openfile.Close() //Close after function return
+	if err != nil {
+		//File not found, send 404
+		http.Error(w, "File not found.", 404)
+		return
+	}
 
-// 	//copy the relevant headers. If you want to preserve the downloaded file name, extract it with go's url parser.
-// 	w.Header().Set("Content-Disposition", "attachment: filename=images.json")
-// 	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
-// 	w.Header().Set("Content-Length", r.Header.Get("Content-Length"))
+	//File is found, create and send the correct headers
 
-// 	//stream the body to the client without fully loading it into memory
-// 	io.Copy(w, resp.Body)
-// }
+	//Get the Content-Type of the file
+	//Create a buffer to store the header of the file in
+	FileHeader := make([]byte, 512)
+	//Copy the headers into the FileHeader buffer
+	Openfile.Read(FileHeader)
+	//Get content type of file
+	FileContentType := http.DetectContentType(FileHeader)
 
-// func downloadScript(y1 []string, y2 []string) {
-// 	start := time.Now()
-// 	for x := range y1 {
-// 		user, err := user.Current()
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-// 		os.Chdir(user.HomeDir + "/Downloads")
+	//Get the file size
+	FileStat, _ := Openfile.Stat()                     //Get info from file
+	FileSize := strconv.FormatInt(FileStat.Size(), 10) //Get file size as a string
 
-// 		dst, err := os.Create(y1[x])
-// 		if err != nil {
-// 			fmt.Println(err)
-// 		}
+	//Send the headers
+	w.Header().Set("Content-Disposition", "attachment; filename="+Filename)
+	w.Header().Set("Content-Type", FileContentType)
+	w.Header().Set("Content-Length", FileSize)
 
-// 		resp, _ := http.Get(y2[x])
+	//Send the file
+	//We read 512 bytes from the file already so we reset the offset back to 0
+	Openfile.Seek(0, 0)
+	io.Copy(w, Openfile) //'Copy' the file to the client
+	return
+}
 
-// 		src, err := io.Copy(dst, resp.Body)
-// 		if err != nil {
-// 			fmt.Println(err)
-// 		}
-// 		fmt.Println(y1[x], src, "Bytes", "Downloaded Successful!.")
-// 	}
-// 	elapsed := time.Since(start)
-// 	log.Printf("Downloaded all files in %s", elapsed)
-// }
+func downloadScript(y1 []string, y2 []string) {
+	start := time.Now()
+	for x := range y1 {
+		// user, err := user.Current()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// os.Chdir(user.HomeDir + "/Downloads")
 
-// func JsonImages() {
-// 	url := "https://www.dropbox.com/s/bngfnoxe5kwv8lc/images.json?dl=1"
+		dst, err := os.Create(y1[x])
+		if err != nil {
+			fmt.Println(err)
+		}
 
-// 	dst, err := os.Create("images.json")
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
+		resp, _ := http.Get(y2[x])
 
-// 	res, err := http.Get(url)
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
+		src, err := io.Copy(dst, resp.Body)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(y1[x], src, "Bytes", "Downloaded Successful!.")
+	}
+	elapsed := time.Since(start)
+	log.Printf("Downloaded all files in %s", elapsed)
+}
 
-// 	src, err := io.Copy(dst, res.Body)
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	fmt.Println(src, "file created!")
+func JsonImages() {
+	url := "https://www.dropbox.com/s/bngfnoxe5kwv8lc/images.json?dl=1"
 
-// 	body, err := ioutil.ReadFile("./images.json")
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
+	dst, err := os.Create("images.json")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-// 	json.Unmarshal(body, &g)
-// }
+	res, err := http.Get(url)
+	if err != nil {
+		panic(err.Error())
+	}
 
-// func Install(images string) {
-// 	switch images {
-// 	case "Lighting":
-// 		fmt.Println("Downloading Lighting Files...")
-// 		downloadScript(g.Images.Lighting.Name, g.Images.Lighting.URL)
-// 		openDropbox := exec.Command("hdiutil", "attach", "Dropbox.dmg")
-// 		openDropbox.Run()
-// 		installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
-// 		installDropbox.Run()
+	src, err := io.Copy(dst, res.Body)
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Println(src, "file created!")
 
-// 		openVista := exec.Command("hdiutil", "attach", "Vista.dmg")
-// 		openVista.Run()
+	body, err := ioutil.ReadFile("./images.json")
+	if err != nil {
+		panic(err.Error())
+	}
 
-// 		openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
-// 		openKaseya.Run()
-// 	case "Checkin":
-// 		fmt.Println("Downloading Check-In Files...")
-// 		downloadScript(g.Images.Checkin.Name, g.Images.Checkin.URL)
-// 		openDropbox := exec.Command("Dropbox.exe")
-// 		openDropbox.Run()
+	json.Unmarshal(body, &g)
+}
 
-// 		openF1 := exec.Command("msiexec", "/a", "F1.msi")
-// 		openF1.Run()
+func Install(images string) {
+	switch images {
+	case "Lighting":
+		fmt.Println("Downloading Lighting Files...")
+		downloadScript(g.Images.Lighting.Name, g.Images.Lighting.URL)
+		// openDropbox := exec.Command("hdiutil", "attach", "Dropbox.dmg")
+		// openDropbox.Run()
+		// installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
+		// installDropbox.Run()
 
-// 		openKaseya := exec.Command("Kaseya.exe")
-// 		openKaseya.Run()
-// 	case "Protools":
-// 		fmt.Println("Downloading Protools Files...")
-// 		downloadScript(g.Images.Protools.Name, g.Images.Protools.URL)
-// 		openProtools := exec.Command("open", "Protools.dmg")
-// 		openProtools.Run()
+		// openVista := exec.Command("hdiutil", "attach", "Vista.dmg")
+		// openVista.Run()
 
-// 		openDVS := exec.Command("open", "DVS.dmg")
-// 		openDVS.Run()
+		// openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
+		// openKaseya.Run()
+	case "Checkin":
+		fmt.Println("Downloading Check-In Files...")
+		downloadScript(g.Images.Checkin.Name, g.Images.Checkin.URL)
+		// openDropbox := exec.Command("Dropbox.exe")
+		// openDropbox.Run()
 
-// 		openMidi := exec.Command("open", "Midi.pkg")
-// 		openMidi.Run()
+		// openF1 := exec.Command("msiexec", "/a", "F1.msi")
+		// openF1.Run()
 
-// 		openDropbox := exec.Command("open", "Dropbox.dmg")
-// 		openDropbox.Run()
+		// openKaseya := exec.Command("Kaseya.exe")
+		// openKaseya.Run()
+	case "Protools":
+		fmt.Println("Downloading Protools Files...")
+		downloadScript(g.Images.Protools.Name, g.Images.Protools.URL)
+		// openProtools := exec.Command("open", "Protools.dmg")
+		// openProtools.Run()
 
-// 		installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
-// 		installDropbox.Run()
+		// openDVS := exec.Command("open", "DVS.dmg")
+		// openDVS.Run()
 
-// 		openPitch := exec.Command("open", "Pitchle3.pkg")
-// 		openPitch.Run()
+		// openMidi := exec.Command("open", "Midi.pkg")
+		// openMidi.Run()
 
-// 		openDanteController := exec.Command("open", "DanteController.dmg")
-// 		openDanteController.Run()
+		// openDropbox := exec.Command("open", "Dropbox.dmg")
+		// openDropbox.Run()
 
-// 		openSpotify := exec.Command("unzip", "-a", "SpotifyInstaller.zip")
-// 		openSpotify.Run()
+		// installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
+		// installDropbox.Run()
 
-// 		openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
-// 		openKaseya.Run()
-// 	case "Propresenter":
-// 		fmt.Println("Downloading Propresenter Files...")
-// 		downloadScript(g.Images.Propresenter.Name, g.Images.Propresenter.URL)
-// 		openPropresenter := exec.Command("open", "Propresenter.dmg")
-// 		openPropresenter.Run()
+		// openPitch := exec.Command("open", "Pitchle3.pkg")
+		// openPitch.Run()
 
-// 		openVideohub := exec.Command("open", "Videohub.dmg")
-// 		openVideohub.Run()
+		// openDanteController := exec.Command("open", "DanteController.dmg")
+		// openDanteController.Run()
 
-// 		openVlc := exec.Command("open", "Vlc.dmg")
-// 		openVlc.Run()
+		// openSpotify := exec.Command("unzip", "-a", "SpotifyInstaller.zip")
+		// openSpotify.Run()
 
-// 		openDropbox := exec.Command("open", "Dropbox.dmg")
-// 		openDropbox.Run()
+		// openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
+		// openKaseya.Run()
+	case "Propresenter":
+		fmt.Println("Downloading Propresenter Files...")
+		downloadScript(g.Images.Propresenter.Name, g.Images.Propresenter.URL)
+		// openPropresenter := exec.Command("open", "Propresenter.dmg")
+		// openPropresenter.Run()
 
-// 		installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
-// 		installDropbox.Run()
+		// openVideohub := exec.Command("open", "Videohub.dmg")
+		// openVideohub.Run()
 
-// 		openHipchat := exec.Command("open", "Hipchat.dmg")
-// 		openHipchat.Run()
+		// openVlc := exec.Command("open", "Vlc.dmg")
+		// openVlc.Run()
 
-// 		openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
-// 		openKaseya.Run()
-// 	case "Usermac":
-// 		fmt.Println("Downloading User Mac Files...")
-// 		downloadScript(g.Images.Usermac.Name, g.Images.Usermac.URL)
-// 		openOffice := exec.Command("open", "Office.pkg")
-// 		openOffice.Run()
+		// openDropbox := exec.Command("open", "Dropbox.dmg")
+		// openDropbox.Run()
 
-// 		deleteDock := exec.Command("defaults", "delete", "com.apple.dock", "persistent-apps")
-// 		deleteDock.Run()
+		// installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
+		// installDropbox.Run()
 
-// 		deleteDock2 := exec.Command("killall", "Dock")
-// 		deleteDock2.Run()
+		// openHipchat := exec.Command("open", "Hipchat.dmg")
+		// openHipchat.Run()
 
-// 		openDropbox := exec.Command("open", "Dropbox.dmg")
-// 		openDropbox.Run()
+		// openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
+		// openKaseya.Run()
+	case "Usermac":
+		fmt.Println("Downloading User Mac Files...")
+		downloadScript(g.Images.Usermac.Name, g.Images.Usermac.URL)
+		// openOffice := exec.Command("open", "Office.pkg")
+		// openOffice.Run()
 
-// 		installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
-// 		installDropbox.Run()
+		// deleteDock := exec.Command("defaults", "delete", "com.apple.dock", "persistent-apps")
+		// deleteDock.Run()
 
-// 		openBria := exec.Command("open", "Bria.dmg")
-// 		openBria.Run()
+		// deleteDock2 := exec.Command("killall", "Dock")
+		// deleteDock2.Run()
 
-// 		openFirefox := exec.Command("open", "Firefox.dmg")
-// 		openFirefox.Run()
+		// openDropbox := exec.Command("open", "Dropbox.dmg")
+		// openDropbox.Run()
 
-// 		openChrome := exec.Command("open", "Chrome.dmg")
-// 		openChrome.Run()
+		// installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
+		// installDropbox.Run()
 
-// 		openVidyo := exec.Command("open", "Vidyo.dmg")
-// 		openVidyo.Run()
+		// openBria := exec.Command("open", "Bria.dmg")
+		// openBria.Run()
 
-// 		openCisco := exec.Command("open", "Cisco.dmg")
-// 		openCisco.Run()
+		// openFirefox := exec.Command("open", "Firefox.dmg")
+		// openFirefox.Run()
 
-// 		openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
-// 		openKaseya.Run()
-// 	case "Smaart":
-// 		fmt.Println("Downloading Smaart Files...")
-// 		downloadScript(g.Images.Smaart.Name, g.Images.Smaart.URL)
-// 		openDropbox := exec.Command("open", "Dropbox.dmg")
-// 		openDropbox.Run()
+		// openChrome := exec.Command("open", "Chrome.dmg")
+		// openChrome.Run()
 
-// 		installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
-// 		installDropbox.Run()
-// 		openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
-// 		openKaseya.Run()
-// 	}
-// }
+		// openVidyo := exec.Command("open", "Vidyo.dmg")
+		// openVidyo.Run()
+
+		// openCisco := exec.Command("open", "Cisco.dmg")
+		// openCisco.Run()
+
+		// openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
+		// openKaseya.Run()
+	case "Smaart":
+		fmt.Println("Downloading Smaart Files...")
+		downloadScript(g.Images.Smaart.Name, g.Images.Smaart.URL)
+		// openDropbox := exec.Command("open", "Dropbox.dmg")
+		// openDropbox.Run()
+
+		// installDropbox := exec.Command("hdiutil", "attach", "/Volumes/Dropbox Installer/Dropbox.app")
+		// installDropbox.Run()
+		// openKaseya := exec.Command("unzip", "-a", "Kaseya.zip")
+		// openKaseya.Run()
+	}
+}
