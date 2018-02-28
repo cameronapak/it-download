@@ -20,7 +20,7 @@ func init() {
 	}
 
 	// get template from views directory
-	tpl = template.Must(template.ParseGlob(path.Dir(filename) + "/templates/*"))
+	tpl = template.Must(template.ParseFiles(path.Dir(filename) + "/templates/index.tmpl.html"))
 }
 
 func HandleError(w http.ResponseWriter, err error) {
