@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"path"
+	"runtime"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -12,7 +14,13 @@ import (
 var tpl *template.Template
 
 func init() {
-	tpl = template.Must(template.ParseFiles("templates/*"))
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		fmt.Println("No caller information")
+	}
+
+	// get template from views directory
+	tpl = template.Must(template.ParseGlob(path.Dir(filename) + "/templates/index.tmpl.html"))
 }
 
 func HandleError(w http.ResponseWriter, err error) {
