@@ -1,13 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"time"
-
-	_ "github.com/heroku/x/hmetrics/onload"
 )
 
 var tpl *template.Template
@@ -24,14 +22,18 @@ func HandleError(w http.ResponseWriter, err error) {
 }
 
 func main() {
-	server := http.Server{
-		Addr:        ":" + os.Getenv("PORT"),
-		IdleTimeout: time.Hour,
-	}
-
 	http.HandleFunc("/", Index)
 
-	server.ListenAndServe()
+	port := "8080"
+	portEnv := os.Getenv("PORT")
+	if len(portEnv) > 0 {
+		port = portEnv
+	}
+
+	log.Printf("Listening on port %s...", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+	// listen and serve on 0.0.0.0:8080 by default
+	// set environment variable PORT if you want to change port
 }
 
 func Index(w http.ResponseWriter, req *http.Request) {
