@@ -19,6 +19,8 @@ ADD Gopkg.lock Gopkg.lock
 RUN dep ensure --vendor-only
 # add source code
 ADD src src
+ADD src/templates src/templates
+ADD src/static src/static
 # build the source
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main src/main.go
 # strip and compress the binary
