@@ -33,6 +33,8 @@ func HandleError(w http.ResponseWriter, err error) {
 func main() {
 	http.HandleFunc("/", Index)
 
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
 	port := "8080"
 	portEnv := os.Getenv("PORT")
 	if len(portEnv) > 0 {
