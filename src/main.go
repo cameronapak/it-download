@@ -31,9 +31,14 @@ func HandleError(w http.ResponseWriter, err error) {
 }
 
 func main() {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		fmt.Println("No caller information")
+	}
+
 	http.HandleFunc("/", Index)
 
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir((filename)+"/static/*"))))
 
 	port := "8080"
 	portEnv := os.Getenv("PORT")
