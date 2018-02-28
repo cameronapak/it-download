@@ -12,7 +12,7 @@ import (
 var tpl *template.Template
 
 func init() {
-	tpl = template.Must(template.ParseGlob("templates/index.tmpl.html"))
+	tpl = template.Must(template.ParseFiles("templates/*"))
 }
 
 func HandleError(w http.ResponseWriter, err error) {
