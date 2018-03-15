@@ -88,8 +88,8 @@
 /* mouse cursor gradient */
 .mouse-cursor-gradient-tracking {
   position: relative;
-  background: #404041;
-  padding: 0.5rem 1rem;
+  background: #FFF;
+  padding: 0.5rem 2rem;
   font-size: 1.2rem;
   border: none;
   color: white;
@@ -97,17 +97,27 @@
   outline: none;
   overflow: hidden;
   text-decoration: none;
+  border-radius: 2rem;
+  border: 1px solid #00a8d8;
 }
+
 .mouse-cursor-gradient-tracking a {
   position: relative;
   text-decoration: none;
-  color: white;
+  color: #00a8d8;
 }
+
+.mouse-cursor-gradient-tracking:hover > a {
+    color: white;
+}
+
 .mouse-cursor-gradient-tracking a:hover {
   position: relative;
   text-decoration: none;
   color: white;
+  border: white;
 }
+
 .mouse-cursor-gradient-tracking::before {
   --size: 0;
   content: '';
@@ -116,10 +126,11 @@
   top: var(--y);
   width: var(--size);
   height: var(--size);
-  background: radial-gradient(circle closest-side, #a6192e, transparent);
+  background: radial-gradient(circle closest-side, #00a8d8, transparent);
   transform: translate(-50%, -50%);
   transition: width .2s ease, height .2s ease;
 }
+
 .mouse-cursor-gradient-tracking:hover::before {
   --size: 200px;
 }
